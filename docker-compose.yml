@@ -1,0 +1,40 @@
+# Brings up Postgres (with pgvector) + the Humaniti backend together.
+# Usage: docker compose up --build
+
+version: "3.9"
+
+services:
+  db:
+    image: ankane/pgvector:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: humaniti
+      POSTGRES_USER: humaniti
+      POSTGRES_PASSWORD: humaniti_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - humaniti_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U humaniti"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AI_MODE: ${AI_MODE:-auto}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      DATABASE_URL: postgresql://humaniti:humaniti_dev_password@db:5432/humaniti
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  humaniti_pgdata:
